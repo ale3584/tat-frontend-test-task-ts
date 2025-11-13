@@ -1,0 +1,52 @@
+@use 'variables' as *;
+
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  padding: 12px 15px;
+  margin-bottom: 10px;
+  border-radius: $border-radius-base;
+  box-shadow: $shadow-card;
+  color: $color-white;
+  min-width: 250px;
+
+  &--error {
+    background-color: #d9534f;
+  }
+
+  &__message {
+    margin: 0;
+    flex-grow: 1;
+    font-size: 0.95em;
+    font-weight: 500;
+  }
+
+  &__close-btn {
+    background: none;
+    border: none;
+    color: $color-white;
+    cursor: pointer;
+    margin-left: 15px;
+    padding: 0;
+    opacity: 0.8;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  &__close-icon {
+    width: 10px;
+    height: 10px;
+    display: block;
+  }
+}
