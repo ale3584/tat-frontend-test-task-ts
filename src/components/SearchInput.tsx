@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { GeoEntity, CountriesMap, GeoType } from '../types/geo.ts';
+import type { GeoEntity, CountriesMap } from '../types/geo.ts';
 import { searchGeo, getCountries } from '../api.ts';
 import { getGeoIcon } from '../utils/icons.tsx';
 import { ClearIcon } from '../utils/icons/ClearIcon.tsx';
@@ -79,34 +79,6 @@ export const SearchInput: React.FC<SearchInputProps> = ({
     }
   }, []);
 
-  const filteredFetchResults = useCallback(
-    async (searchQuery: string, requiredType: GeoType) => {
-      setIsLoading(true);
-      try {
-        const response = await searchGeo(searchQuery);
-        const data = await response.json();
-
-        let items = Object.values(data) as GeoEntity[];
-
-        const queryLower = searchQuery.toLowerCase();
-        
-        items = items.filter(
-            (item) => item.type === requiredType && 
-            item.name.toLowerCase().includes(queryLower)
-        );
-
-        setResults(items);
-        setHighlightedIndex(items.length > 0 ? 0 : -1);
-      } catch (error) {
-        console.error('Search failed:', error);
-        setResults([]);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    []
-  );
-
   useEffect(() => {
     if (selectedItem && selectedItem.name !== query) {
       setQuery(selectedItem.name);
@@ -122,11 +94,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
   useEffect(() => {
     const currentQueryLength = debouncedQuery.length;
     if (currentQueryLength > 0 && debouncedQuery !== selectedItem?.name) {
-      if (currentQueryLength >= 2) {
-        fetchResults(debouncedQuery);
-      } else {
-        loadInitialCountries();
-      }
+      fetchResults(debouncedQuery);
     } else if (currentQueryLength === 0 && selectedItem) {
       loadInitialCountries();
     }
@@ -156,6 +124,9 @@ export const SearchInput: React.FC<SearchInputProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newQuery = e.target.value;
     setQuery(newQuery);
+    if (!isDropdownOpen) {
+      setIsDropdownOpen(true);
+    }
     if (selectedItem && newQuery !== selectedItem.name) {
       onSelect(null);
     }
@@ -174,10 +145,10 @@ export const SearchInput: React.FC<SearchInputProps> = ({
         loadInitialCountries();
         break;
       case 'city':
-        filteredFetchResults(query, 'city');
+        fetchResults(query);
         break;
       case 'hotel':
-        filteredFetchResults(query, 'hotel');
+        fetchResults(query);
         break;
       default:
         if (query.length > 0) {
@@ -226,11 +197,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
   };
 
   const shouldShowDropdown =
-    isDropdownOpen &&
-    (isLoading ||
-      results.length > 0 ||
-      query.length >= 2 ||
-      query.length === 0);
+    isDropdownOpen && (isLoading || results.length > 0 || query.trim().length > 0);
 
   return (
     <div
@@ -268,7 +235,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
         <div className='search__dropdown'>
           {isLoading && <div className='search__status'>Завантаження...</div>}
 
-          {!isLoading && results.length === 0 && query.length >= 2 && (
+          {!isLoading && results.length === 0 && query.trim().length > 0 && (
             <div className='search__status'>Нічого не знайдено.</div>
           )}
 
