@@ -87,7 +87,13 @@ export const SearchInput: React.FC<SearchInputProps> = ({
         const data = await response.json();
 
         let items = Object.values(data) as GeoEntity[];
-        items = items.filter((item) => item.type === requiredType);
+
+        const queryLower = searchQuery.toLowerCase();
+        
+        items = items.filter(
+            (item) => item.type === requiredType && 
+            item.name.toLowerCase().includes(queryLower)
+        );
 
         setResults(items);
         setHighlightedIndex(items.length > 0 ? 0 : -1);
