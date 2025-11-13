@@ -41,3 +41,5 @@ export type CountriesMap = Record<string, Country>;
 export type HotelsMap = Record<string, Hotel>;
 
 export type GeoResponseMap = Record<string, GeoEntity>;
+
+export type GeoType = 'country' | 'city' | 'hotel';

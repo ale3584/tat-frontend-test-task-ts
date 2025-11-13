@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { GeoEntity, CountriesMap } from '../types/geo.ts';
+import type { GeoEntity, CountriesMap, GeoType } from '../types/geo.ts';
 import { searchGeo, getCountries } from '../api.ts';
 import { getGeoIcon } from '../utils/icons.tsx';
 import { ClearIcon } from '../utils/icons/ClearIcon.tsx';
@@ -21,6 +21,10 @@ const useDebounce = <T,>(value: T, delay: number): T => {
     return () => clearTimeout(handler);
   }, [value, delay]);
   return debouncedValue;
+};
+
+const filterGeoResults = (items: GeoEntity[], type: GeoType): GeoEntity[] => {
+  return items.filter((item) => item.type === type);
 };
 
 export const SearchInput: React.FC<SearchInputProps> = ({
@@ -91,6 +95,29 @@ export const SearchInput: React.FC<SearchInputProps> = ({
     }
   }, []);
 
+  const filteredFetchResults = useCallback(
+    async (searchQuery: string, requiredType: GeoType) => {
+      setIsLoading(true);
+      try {
+        const response = await searchGeo(searchQuery);
+        const data = await response.json();
+
+        let items = Object.values(data) as GeoEntity[];
+
+        items = items.filter((item) => item.type === requiredType);
+
+        setResults(items);
+        setHighlightedIndex(items.length > 0 ? 0 : -1);
+      } catch (error) {
+        console.error('Search failed:', error);
+        setResults([]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
+
   useEffect(() => {
     if (!selectedItem) {
       loadInitialCountries();
@@ -153,8 +180,10 @@ export const SearchInput: React.FC<SearchInputProps> = ({
         loadInitialCountries();
         break;
       case 'city':
+        filteredFetchResults(query, 'city');
+        break;
       case 'hotel':
-        fetchResults(query);
+        filteredFetchResults(query, 'hotel');
         break;
       default:
         if (query.length > 0) {
