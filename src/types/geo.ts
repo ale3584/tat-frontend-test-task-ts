@@ -43,3 +43,11 @@ export type HotelsMap = Record<string, Hotel>;
 export type GeoResponseMap = Record<string, GeoEntity>;
 
 export type GeoType = 'country' | 'city' | 'hotel';
+
+export interface Hotel {
+  id: number;
+  name: string;
+  countryName: string;
+  cityName: string;
+  img: string;
+}

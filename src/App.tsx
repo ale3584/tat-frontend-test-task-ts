@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { SearchForm } from './components/SearchForm';
-import { getSearchPrices, startSearchPrices } from './api';
+import { getSearchPrices, startSearchPrices, getHotels } from './api';
+import type { Hotel } from './types/geo';
+import { TourCard } from './components/TourCard';
 import type {
   ApiErrorResponse,
   SearchPrice,
@@ -90,7 +92,7 @@ const fetchPricesWithPolling = async (
 
         if (error.status === 425) {
           nextWaitUntil = payload.waitUntil;
-          continue;
+          continue; // не виходимо чекаємо і пробуємо ще раз
         }
 
         attempts += 1;
@@ -122,12 +124,18 @@ function App() {
   const [searchResults, setSearchResults] = useState<
     Record<string, SearchResultState>
   >({});
-  const [activeCountryId, setActiveCountryId] = useState<string | null>(null);
+  const [activeCountryId, setActiveCountryId] = useState<string | 
+  null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  
+  const [hotelsCache, setHotelsCache] = useState<
+    Record<string, Record<string, Hotel>>
+  >({});
 
   const currentResult = activeCountryId
     ? searchResults[activeCountryId]
     : undefined;
+  
   const shouldShowEmptyState =
     hasSearched &&
     !isLoading &&
@@ -191,7 +199,11 @@ function App() {
         ...prev,
         [countryId]: normalizedResult,
       }));
+
+      getHotelsForCountry(countryId);
+
       setError(null);
+
     } catch (err) {
       if (err instanceof Response) {
         let payload: ApiErrorResponse = {};
@@ -216,6 +228,15 @@ function App() {
     }
   };
 
+  const getHotelsForCountry = async (countryId: string) => {
+    if (hotelsCache[countryId]) return hotelsCache[countryId];
+
+    const resp = await getHotels(countryId);
+    const hotelsData: Record<string, Hotel> = await resp.json();
+    setHotelsCache((prev) => ({ ...prev, [countryId]: hotelsData }));
+    return hotelsData;
+  };
+
   return (
     <div className='app-container'>
       <SearchForm
@@ -223,6 +244,19 @@ function App() {
         isSearching={isLoading}
         footer={statusMessage}
       />
+
+      {currentResult && (
+        <div className='tours-grid'>
+          {Object.values(currentResult.pricesById).map((price) => {
+            const hotels = hotelsCache[activeCountryId!];
+            if (!hotels) return null;
+            const hotel = hotels[price.hotelID];
+            if (!hotel) return null;
+
+            return <TourCard key={price.id} hotel={hotel} price={price} />;
+          })}
+        </div>
+      )}
     </div>
   );
 }

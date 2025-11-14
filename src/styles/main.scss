@@ -2,6 +2,7 @@
 @use 'form';
 @use 'search';
 @use 'toast';
+@use 'tour-card';
 
 html {
   box-sizing: border-box;
@@ -33,6 +34,7 @@ body {
   width: 100%;
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   justify-content: flex-start;
   align-items: flex-start;
 }

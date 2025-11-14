@@ -58,26 +58,28 @@ export const SearchForm: React.FC<SearchFormProps> = ({
   const isSearchEnabled = !!selectedGeo && !isSearching;
 
   return (
-    <div className='search-form__card'>
-      <h2 className='search-form__title'>Форма пошуку турів</h2>
-      <form onSubmit={handleSubmit} className='search-form'>
-        <SearchInput
-          name='searchFrom'
-          placeholder='Оберіть напрямок подорожі'
-          onSelect={handleGeoSelect}
-          selectedItem={selectedGeo}
-          disabled={isSearching}
-        />
-        <button
-          type='submit'
-          className='search-form__submit-btn'
-          disabled={!isSearchEnabled || isSearching}
-        >
-          {isSearching ? 'Пошук...' : 'Знайти'}
-        </button>
-      </form>
-      {error && <Toast message={error} onClose={() => setError(null)} />}
-      {footer && <div className='search-form__footer'>{footer}</div>}
-    </div>
+    <section className='search-section'>
+      <div className='search-form__card'>
+        <h2 className='search-form__title'>Форма пошуку турів</h2>
+        <form onSubmit={handleSubmit} className='search-form'>
+          <SearchInput
+            name='searchFrom'
+            placeholder='Оберіть напрямок подорожі'
+            onSelect={handleGeoSelect}
+            selectedItem={selectedGeo}
+            disabled={isSearching}
+          />
+          <button
+            type='submit'
+            className='search-form__submit-btn'
+            disabled={!isSearchEnabled || isSearching}
+          >
+            {isSearching ? 'Пошук...' : 'Знайти'}
+          </button>
+        </form>
+        {error && <Toast message={error} onClose={() => setError(null)} />}
+        {footer && <div className='search-form__footer'>{footer}</div>}
+      </div>
+    </section>
   );
 };
