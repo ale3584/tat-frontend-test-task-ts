@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { GeoEntity } from '../types/geo.ts';
 import { SearchInput } from './SearchInput.tsx';
 import type { Country, City, Hotel } from '../types/geo.ts';
@@ -7,6 +7,7 @@ import { Toast } from './Toast.tsx';
 interface SearchFormProps {
   onSubmit: (countryId: string) => void;
   isSearching: boolean;
+  footer?: ReactNode;
 }
 
 // витягування CountryID
@@ -26,6 +27,7 @@ const getCountryId = (geo: GeoEntity): string | undefined => {
 export const SearchForm: React.FC<SearchFormProps> = ({
   onSubmit,
   isSearching,
+  footer,
 }) => {
   const [selectedGeo, setSelectedGeo] = useState<GeoEntity | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +77,7 @@ export const SearchForm: React.FC<SearchFormProps> = ({
         </button>
       </form>
       {error && <Toast message={error} onClose={() => setError(null)} />}
+      {footer && <div className='search-form__footer'>{footer}</div>}
     </div>
   );
 };

@@ -48,3 +48,26 @@
     }
   }
 }
+
+.search-form__footer {
+  margin-top: 16px;
+  min-height: 24px;
+}
+
+.search-form__message {
+  margin: 0;
+  text-align: center;
+  font-size: 0.95em;
+
+  &--loading {
+    color: $color-primary;
+  }
+
+  &--error {
+    color: $color-error;
+  }
+
+  &--empty {
+    color: $color-text-subtle;
+  }
+}
