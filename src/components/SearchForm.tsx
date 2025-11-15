@@ -10,7 +10,6 @@ interface SearchFormProps {
   footer?: ReactNode;
 }
 
-// витягування CountryID
 const getCountryId = (geo: GeoEntity): string | undefined => {
   if (geo.type === 'country') {
     return (geo as Country).id;
@@ -67,7 +66,6 @@ export const SearchForm: React.FC<SearchFormProps> = ({
             placeholder='Оберіть напрямок подорожі'
             onSelect={handleGeoSelect}
             selectedItem={selectedGeo}
-            disabled={isSearching}
           />
           <button
             type='submit'

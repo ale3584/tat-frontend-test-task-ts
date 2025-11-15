@@ -1,118 +1,20 @@
 import { useState, useEffect } from 'react';
 import { SearchForm } from '../components/SearchForm';
 import { TourCard } from '../components/TourCard';
+import { normalizeSearchResult } from '../services/normalize';
+import { fetchPricesWithPolling } from '../services/fetchPrices';
 
-import {
-  getSearchPrices,
-  startSearchPrices,
-  getHotels,
-  getCountries,
-} from '../api';
+import { startSearchPrices, getHotels, getCountries } from '../api';
 
 import type { Hotel, Country } from '../types/geo';
 import type {
   ApiErrorResponse,
   SearchPrice,
-  SearchPricesResponse,
   SearchResultState,
   StartSearchResponse,
 } from '../types/search';
 
 import '../styles/main.scss';
-
-const MAX_ERROR_RETRIES = 2;
-
-const getDefaultRetryTimestamp = (): string =>
-  new Date(Date.now() + 1000).toISOString();
-
-const waitFor = async (waitUntil?: string): Promise<void> => {
-  if (!waitUntil) return;
-
-  const targetTimestamp = Date.parse(waitUntil);
-  if (Number.isNaN(targetTimestamp)) return;
-
-  const delay = targetTimestamp - Date.now();
-  if (delay <= 0) return;
-
-  await new Promise<void>((resolve) => setTimeout(resolve, delay));
-};
-
-const normalizeSearchResult = (
-  token: string,
-  prices: Record<string, SearchPrice> = {}
-): SearchResultState => {
-  const priceIds: string[] = [];
-  const pricesById: Record<string, SearchPrice> = {};
-
-  Object.entries(prices).forEach(([priceId, price]) => {
-    const normalizedPrice: SearchPrice = {
-      ...price,
-      id: price.id ?? priceId,
-    };
-
-    priceIds.push(priceId);
-    pricesById[priceId] = normalizedPrice;
-  });
-
-  return {
-    token,
-    receivedAt: Date.now(),
-    priceIds,
-    pricesById,
-  };
-};
-
-const fetchPricesWithPolling = async (
-  token: string,
-  initialWaitUntil?: string
-): Promise<Record<string, SearchPrice>> => {
-  let attempts = 0;
-  let nextWaitUntil = initialWaitUntil;
-
-  while (true) {
-    if (nextWaitUntil) {
-      await waitFor(nextWaitUntil);
-      nextWaitUntil = undefined;
-    }
-
-    try {
-      const response = await getSearchPrices(token);
-      const data = (await response.json()) as SearchPricesResponse;
-
-      return data.prices ?? {};
-    } catch (error) {
-      if (error instanceof Response) {
-        let payload: ApiErrorResponse = {};
-
-        try {
-          payload = (await error.json()) as ApiErrorResponse;
-        } catch {}
-
-        if (error.status === 425) {
-          nextWaitUntil = payload.waitUntil;
-          continue;
-        }
-
-        attempts++;
-        if (attempts > MAX_ERROR_RETRIES) {
-          throw new Error(
-            payload.message ?? 'Не вдалося отримати результати пошуку турів.'
-          );
-        }
-
-        nextWaitUntil = payload.waitUntil ?? getDefaultRetryTimestamp();
-        continue;
-      }
-
-      attempts++;
-      if (attempts > MAX_ERROR_RETRIES) {
-        throw new Error('Сталася помилка мережі. Спробуйте пізніше.');
-      }
-
-      nextWaitUntil = getDefaultRetryTimestamp();
-    }
-  }
-};
 
 export default function SearchPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -128,8 +30,9 @@ export default function SearchPage() {
   >({});
   const [countries, setCountries] = useState<Record<string, Country>>({});
 
-  const currentResult =
-    activeCountryId ? searchResults[activeCountryId] : undefined;
+  const currentResult = activeCountryId
+    ? searchResults[activeCountryId]
+    : undefined;
 
   const shouldShowEmptyState =
     hasSearched &&
