@@ -5,6 +5,7 @@ export const GlobeIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     viewBox='0 0 15 15'
     fill='none'
     xmlns='http://www.w3.org/2000/svg'
+    {...props}
   >
     <path
       d='M14.1 5.175L14.5 10.175C13.45 13 10.7 15 7.5 15C3.35 15 0 11.65 0 7.5C0 3.35 3.35 0 7.5 0C9 0 10.4 0.45 11.575 1.2L14.1 5.175Z'

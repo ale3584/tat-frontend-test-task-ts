@@ -5,18 +5,37 @@ import { waitFor, getDefaultRetryTimestamp } from './time';
 
 const MAX_ERROR_RETRIES = 2;
 
+interface FetchPricesOptions {
+  signal?: AbortSignal;
+}
+
+const isAbortError = (error: unknown): error is DOMException =>
+  error instanceof DOMException && error.name === 'AbortError';
+
 export const fetchPricesWithPolling = async (
   token: string,
-  initialWaitUntil?: string
+  initialWaitUntil?: string,
+  options: FetchPricesOptions = {}
 ): Promise<Record<string, SearchPrice>> => {
   let attempts = 0;
   let nextWaitUntil = initialWaitUntil;
+  const { signal } = options;
+
+  const ensureNotAborted = () => {
+    if (signal?.aborted) {
+      throw new DOMException('Search was aborted', 'AbortError');
+    }
+  };
 
   while (true) {
+    ensureNotAborted();
+
     if (nextWaitUntil) {
-      await waitFor(nextWaitUntil);
+      await waitFor(nextWaitUntil, signal);
       nextWaitUntil = undefined;
     }
+
+    ensureNotAborted();
 
     try {
       const response = await getSearchPrices(token);
@@ -24,6 +43,10 @@ export const fetchPricesWithPolling = async (
 
       return data.prices ?? {};
     } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
+
       if (error instanceof Response) {
         let payload: ApiErrorResponse = {};
 

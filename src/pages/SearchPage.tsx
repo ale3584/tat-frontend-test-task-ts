@@ -1,10 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SearchForm } from '../components/SearchForm';
 import { TourCard } from '../components/TourCard';
 import { normalizeSearchResult } from '../services/normalize';
 import { fetchPricesWithPolling } from '../services/fetchPrices';
 
-import { startSearchPrices, getHotels, getCountries } from '../api';
+import {
+  startSearchPrices,
+  getHotels,
+  getCountries,
+  stopSearchPrices,
+} from '../api';
 
 import type { Hotel, Country } from '../types/geo';
 import type {
@@ -24,11 +29,17 @@ export default function SearchPage() {
   >({});
   const [activeCountryId, setActiveCountryId] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [isSubmitLocked, setIsSubmitLocked] = useState(false);
 
   const [hotelsCache, setHotelsCache] = useState<
     Record<string, Record<string, Hotel>>
   >({});
   const [countries, setCountries] = useState<Record<string, Country>>({});
+  const activeSearchRef = useRef<{
+    token: string;
+    controller: AbortController;
+  } | null>(null);
+  const submitLockIdRef = useRef(0);
 
   const currentResult = activeCountryId
     ? searchResults[activeCountryId]
@@ -78,21 +89,85 @@ export default function SearchPage() {
     loadCountries();
   }, []);
 
-  const handleSearch = async (countryId: string) => {
-    setActiveCountryId(countryId);
-    setHasSearched(true);
-    setError(null);
+  const isAbortError = (err: unknown): err is DOMException =>
+    err instanceof DOMException && err.name === 'AbortError';
 
-    if (searchResults[countryId]) return;
+  const cancelActiveSearch = async () => {
+    const activeSearch = activeSearchRef.current;
+    if (!activeSearch) return;
 
+    activeSearch.controller.abort();
+
+    try {
+      await stopSearchPrices(activeSearch.token);
+    } catch {
+      // Ignore errors when stopping previous searches
+    } finally {
+      if (activeSearchRef.current?.token === activeSearch.token) {
+        activeSearchRef.current = null;
+      }
+    }
+  };
+
+  const handleSearchError = async (err: unknown) => {
+    if (err instanceof Response) {
+      let payload: ApiErrorResponse = {};
+
+      try {
+        payload = (await err.json()) as ApiErrorResponse;
+      } catch {}
+
+      setError(
+        payload.message ??
+          'Сталася помилка при запуску пошуку турів. Спробуйте знову.'
+      );
+      return;
+    }
+
+    if (err instanceof Error) {
+      setError(err.message);
+      return;
+    }
+
+    setError('Сталася помилка при пошуку турів. Спробуйте пізніше.');
+  };
+
+  const releaseSubmitLock = (lockId: number) => {
+    if (submitLockIdRef.current === lockId) {
+      setIsSubmitLocked(false);
+    }
+  };
+
+  const startSearchCycle = async (countryId: string, lockId: number) => {
     setIsLoading(true);
+
+    const abortController = new AbortController();
+    let startPayload: StartSearchResponse;
 
     try {
       const response = await startSearchPrices(countryId);
-      const { token, waitUntil } =
-        (await response.json()) as StartSearchResponse;
+      startPayload = (await response.json()) as StartSearchResponse;
+    } catch (err) {
+      setIsLoading(false);
+      throw err;
+    }
 
-      const prices = await fetchPricesWithPolling(token, waitUntil);
+    const { token, waitUntil } = startPayload;
+    activeSearchRef.current = {
+      token,
+      controller: abortController,
+    };
+    releaseSubmitLock(lockId);
+
+    try {
+      const prices = await fetchPricesWithPolling(token, waitUntil, {
+        signal: abortController.signal,
+      });
+
+      if (activeSearchRef.current?.token !== token) {
+        return;
+      }
+
       const normalizedResult = normalizeSearchResult(token, prices);
 
       setSearchResults((prev) => ({
@@ -102,25 +177,42 @@ export default function SearchPage() {
 
       getHotelsForCountry(countryId);
     } catch (err) {
-      if (err instanceof Response) {
-        let payload: ApiErrorResponse = {};
-
-        try {
-          payload = (await err.json()) as ApiErrorResponse;
-        } catch {}
-
-        setError(
-          payload.message ??
-            'Сталася помилка при запуску пошуку турів. Спробуйте знову.'
-        );
-      } else if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Сталася помилка при пошуку турів. Спробуйте пізніше.');
+      if (isAbortError(err)) {
+        return;
       }
+
+      throw err;
     } finally {
-      setIsLoading(false);
+      if (activeSearchRef.current?.token === token) {
+        activeSearchRef.current = null;
+        setIsLoading(false);
+      }
     }
+  };
+
+  const runSearchFlow = async (countryId: string) => {
+    submitLockIdRef.current += 1;
+    const lockId = submitLockIdRef.current;
+    setIsSubmitLocked(true);
+
+    try {
+      await cancelActiveSearch();
+      await startSearchCycle(countryId, lockId);
+    } catch (err) {
+      await handleSearchError(err);
+    } finally {
+      releaseSubmitLock(lockId);
+    }
+  };
+
+  const handleSearch = (countryId: string) => {
+    setActiveCountryId(countryId);
+    setHasSearched(true);
+    setError(null);
+
+    if (searchResults[countryId]) return;
+
+    void runSearchFlow(countryId);
   };
 
   const getHotelsForCountry = async (countryId: string) => {
@@ -164,6 +256,7 @@ export default function SearchPage() {
       <SearchForm
         onSubmit={handleSearch}
         isSearching={isLoading}
+        isSubmitDisabled={isSubmitLocked}
         footer={statusMessage}
       />
 
