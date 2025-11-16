@@ -13,6 +13,10 @@ export default function TourPage() {
   const { priceId } = useParams<{ priceId: string }>();
   const [searchParams] = useSearchParams();
   const hotelId = searchParams.get('hotel');
+  const backParams = new URLSearchParams(searchParams);
+  backParams.delete('hotel');
+  const backQuery = backParams.toString();
+  const backLinkHref = backQuery ? `/?${backQuery}` : '/';
 
   const [price, setPrice] = useState<SearchPrice | null>(null);
   const [hotel, setHotel] = useState<Hotel | null>(null);
@@ -21,7 +25,11 @@ export default function TourPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!priceId) return;
+    if (!priceId || !hotelId) {
+      setError('Не вдалося визначити тур для перегляду.');
+      setLoading(false);
+      return;
+    }
 
     const loadData = async () => {
       try {
@@ -42,7 +50,7 @@ export default function TourPage() {
     };
 
     loadData();
-  }, [priceId]);
+  }, [priceId, hotelId]);
 
   if (loading) return <p className='tour-page__loading'>Завантаження...</p>;
   if (error || !price || !hotel)
@@ -50,7 +58,7 @@ export default function TourPage() {
 
   return (
     <div className='tour-page'>
-      <Link to='/' className='tour-page__back'>
+      <Link to={backLinkHref} className='tour-page__back'>
         ← Назад
       </Link>
 

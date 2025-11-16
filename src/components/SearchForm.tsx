@@ -9,6 +9,7 @@ interface SearchFormProps {
   isSearching: boolean;
   footer?: ReactNode;
   isSubmitDisabled?: boolean;
+  onSelectedCountryChange?: (countryId: string | null) => void;
 }
 
 const getCountryId = (geo: GeoEntity): string | undefined => {
@@ -29,12 +30,15 @@ export const SearchForm: React.FC<SearchFormProps> = ({
   isSearching,
   footer,
   isSubmitDisabled = false,
+  onSelectedCountryChange,
 }) => {
   const [selectedGeo, setSelectedGeo] = useState<GeoEntity | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleGeoSelect = (item: GeoEntity | null) => {
     setSelectedGeo(item);
+    const nextCountryId = item ? getCountryId(item) ?? null : null;
+    onSelectedCountryChange?.(nextCountryId);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -56,8 +60,6 @@ export const SearchForm: React.FC<SearchFormProps> = ({
     }
   };
 
-  const isSearchEnabled = !isSubmitDisabled;
-
   return (
     <section className='search-section'>
       <div className='search-form__card'>
@@ -72,7 +74,7 @@ export const SearchForm: React.FC<SearchFormProps> = ({
           <button
             type='submit'
             className='search-form__submit-btn'
-            disabled={!isSearchEnabled}
+            disabled={isSubmitDisabled}
           >
             {isSearching ? 'Пошук...' : 'Знайти'}
           </button>

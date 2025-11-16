@@ -6,16 +6,26 @@ interface TourCardProps {
   hotel: Hotel;
   price: SearchPrice;
   country: Country;
+  searchQuery?: string;
 }
 
 export const TourCard: React.FC<TourCardProps> = ({
   hotel,
   price,
   country,
+  searchQuery,
 }) => {
   const formatDate = (date: string) => {
     const d = new Date(date);
     return d.toLocaleDateString('uk-UA');
+  };
+
+  const buildDetailsLink = () => {
+    const params = new URLSearchParams(searchQuery || undefined);
+    params.set('hotel', price.hotelID);
+    const queryString = params.toString();
+
+    return queryString ? `/tour/${price.id}?${queryString}` : `/tour/${price.id}`;
   };
 
   return (
@@ -35,10 +45,7 @@ export const TourCard: React.FC<TourCardProps> = ({
       <p className='tour-card__price'>
         {price.amount.toLocaleString('uk-UA')} {price.currency}
       </p>
-      <Link
-        className='tour-card__link'
-        to={`/tour/${price.id}?hotel=${price.hotelID}`}
-      >
+      <Link className='tour-card__link' to={buildDetailsLink()}>
         Відкрити ціну
       </Link>
     </div>
