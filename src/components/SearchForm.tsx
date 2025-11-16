@@ -56,7 +56,7 @@ export const SearchForm: React.FC<SearchFormProps> = ({
     }
   };
 
-  const isSearchEnabled = !!selectedGeo && !isSubmitDisabled;
+  const isSearchEnabled = !isSubmitDisabled;
 
   return (
     <section className='search-section'>
