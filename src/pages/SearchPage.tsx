@@ -210,7 +210,13 @@ export default function SearchPage() {
     setHasSearched(true);
     setError(null);
 
-    if (searchResults[countryId]) return;
+    setSearchResults((prev) => {
+      if (!prev[countryId]) return prev;
+
+      const next = { ...prev };
+      delete next[countryId];
+      return next;
+    });
 
     void runSearchFlow(countryId);
   };
