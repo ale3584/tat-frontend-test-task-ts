@@ -30,15 +30,18 @@ export default function SearchPage() {
   const [activeCountryId, setActiveCountryId] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [isSubmitLocked, setIsSubmitLocked] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const [hotelsCache, setHotelsCache] = useState<
     Record<string, Record<string, Hotel>>
   >({});
   const [countries, setCountries] = useState<Record<string, Country>>({});
-  const activeSearchRef = useRef<{
+  type ActiveSearchState = {
     token: string;
     controller: AbortController;
-  } | null>(null);
+    status: 'active' | 'cancelling';
+  };
+  const activeSearchRef = useRef<ActiveSearchState | null>(null);
   const submitLockIdRef = useRef(0);
 
   const currentResult = activeCountryId
@@ -52,6 +55,14 @@ export default function SearchPage() {
     currentResult?.priceIds?.length === 0;
 
   const statusMessage = (() => {
+    if (isCancelling) {
+      return (
+        <p className='search-form__message search-form__message--loading'>
+          Скасовуємо попередній пошук...
+        </p>
+      );
+    }
+
     if (isLoading) {
       return (
         <p className='search-form__message search-form__message--loading'>
@@ -96,16 +107,19 @@ export default function SearchPage() {
     const activeSearch = activeSearchRef.current;
     if (!activeSearch) return;
 
-    activeSearch.controller.abort();
+    setIsCancelling(true);
+    if (activeSearchRef.current?.token === activeSearch.token) {
+      activeSearchRef.current = { ...activeSearch, status: 'cancelling' };
+    }
 
     try {
       await stopSearchPrices(activeSearch.token);
-    } catch {
-      // Ignore errors when stopping previous searches
     } finally {
+      activeSearch.controller.abort();
       if (activeSearchRef.current?.token === activeSearch.token) {
         activeSearchRef.current = null;
       }
+      setIsCancelling(false);
     }
   };
 
@@ -156,6 +170,7 @@ export default function SearchPage() {
     activeSearchRef.current = {
       token,
       controller: abortController,
+      status: 'active',
     };
     releaseSubmitLock(lockId);
 
@@ -164,7 +179,10 @@ export default function SearchPage() {
         signal: abortController.signal,
       });
 
-      if (activeSearchRef.current?.token !== token) {
+      if (
+        activeSearchRef.current?.token !== token ||
+        activeSearchRef.current?.status === 'cancelling'
+      ) {
         return;
       }
 
