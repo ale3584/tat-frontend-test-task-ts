@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { GeoEntity } from '../types/geo.ts';
 import { SearchInput } from './SearchInput.tsx';
 import type { Country, City, Hotel } from '../types/geo.ts';
@@ -32,15 +32,33 @@ export const SearchForm: React.FC<SearchFormProps> = ({
 }) => {
   const [selectedGeo, setSelectedGeo] = useState<GeoEntity | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lockedCountryId, setLockedCountryId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isSubmitDisabled) {
+      setLockedCountryId(null);
+    }
+  }, [isSubmitDisabled]);
 
   const handleGeoSelect = (item: GeoEntity | null) => {
     setSelectedGeo(item);
+
+    if (!item) {
+      setLockedCountryId(null);
+      return;
+    }
+
+    const nextCountryId = getCountryId(item);
+
+    if (lockedCountryId && nextCountryId && lockedCountryId !== nextCountryId) {
+      setLockedCountryId(null);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (isSubmitDisabled) return;
+    if (!isSearchEnabled) return;
 
     if (!selectedGeo) {
       setError('Будь ласка, оберіть напрямок для пошуку.');
@@ -50,13 +68,21 @@ export const SearchForm: React.FC<SearchFormProps> = ({
     const countryIdToSearch = getCountryId(selectedGeo);
 
     if (countryIdToSearch) {
+      setLockedCountryId(countryIdToSearch);
       onSubmit(countryIdToSearch);
     } else {
       setError('Не вдалося визначити країну для пошуку.');
     }
   };
 
-  const isSearchEnabled = !isSubmitDisabled;
+  const selectedCountryId = selectedGeo ? getCountryId(selectedGeo) : undefined;
+  const isSearchLockedForSelectedCountry = Boolean(
+    isSubmitDisabled &&
+      lockedCountryId &&
+      selectedCountryId &&
+      lockedCountryId === selectedCountryId
+  );
+  const isSearchEnabled = !isSearchLockedForSelectedCountry;
 
   return (
     <section className='search-section'>
