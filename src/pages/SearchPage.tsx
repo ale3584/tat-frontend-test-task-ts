@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { SearchForm } from '../components/SearchForm';
 import { TourCard } from '../components/TourCard';
 import { normalizeSearchResult } from '../services/normalize';
@@ -35,11 +36,16 @@ export default function SearchPage() {
     Record<string, Record<string, Hotel>>
   >({});
   const [countries, setCountries] = useState<Record<string, Country>>({});
+  const [searchParams, setSearchParams] = useSearchParams();
   const activeSearchRef = useRef<{
     token: string;
     controller: AbortController;
   } | null>(null);
   const submitLockIdRef = useRef(0);
+  const hasHydratedFromParamsRef = useRef(false);
+  const currentCountryParam = searchParams.get('country');
+  const currentResultParam = searchParams.get('result');
+  const hotelParam = searchParams.get('hotel');
 
   const currentResult = activeCountryId
     ? searchResults[activeCountryId]
@@ -79,6 +85,18 @@ export default function SearchPage() {
     return null;
   })();
 
+  const getHotelsForCountry = useCallback(
+    async (countryId: string) => {
+      if (hotelsCache[countryId]) return hotelsCache[countryId];
+
+      const resp = await getHotels(countryId);
+      const hotelsData: Record<string, Hotel> = await resp.json();
+      setHotelsCache((prev) => ({ ...prev, [countryId]: hotelsData }));
+      return hotelsData;
+    },
+    [hotelsCache]
+  );
+
   useEffect(() => {
     const loadCountries = async () => {
       const resp = await getCountries();
@@ -88,6 +106,110 @@ export default function SearchPage() {
 
     loadCountries();
   }, []);
+
+  useEffect(() => {
+    if (hasHydratedFromParamsRef.current) return;
+    hasHydratedFromParamsRef.current = true;
+
+    if (!currentCountryParam || !currentResultParam) {
+      return;
+    }
+
+    try {
+      const parsedResult = JSON.parse(currentResultParam) as SearchResultState;
+
+      setSearchResults((prev) => ({
+        ...prev,
+        [currentCountryParam]: parsedResult,
+      }));
+      setActiveCountryId(currentCountryParam);
+      setHasSearched(true);
+      setError(null);
+      void getHotelsForCountry(currentCountryParam);
+    } catch {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('country');
+          next.delete('result');
+          next.delete('hotel');
+          return next;
+        },
+        { replace: true }
+      );
+    }
+  }, [
+    currentCountryParam,
+    currentResultParam,
+    getHotelsForCountry,
+    setSearchParams,
+  ]);
+
+  useEffect(() => {
+    const serializedResult =
+      activeCountryId && currentResult
+        ? JSON.stringify(currentResult)
+        : null;
+
+    if (!serializedResult || !activeCountryId) {
+      if (!currentCountryParam && !currentResultParam && !hotelParam) {
+        return;
+      }
+
+      setSearchParams(
+        (prev) => {
+          const prevString = prev.toString();
+          const next = new URLSearchParams(prev);
+          next.delete('country');
+          next.delete('result');
+          next.delete('hotel');
+          const nextString = next.toString();
+
+          if (nextString === prevString) {
+            return prev;
+          }
+
+          return next;
+        },
+        { replace: true }
+      );
+      return;
+    }
+
+    const isAlreadySynced =
+      !hotelParam &&
+      currentCountryParam === activeCountryId &&
+      currentResultParam === serializedResult;
+
+    if (isAlreadySynced) {
+      return;
+    }
+
+    setSearchParams(
+      (prev) => {
+        const prevString = prev.toString();
+        const next = new URLSearchParams(prev);
+        next.set('country', activeCountryId);
+        next.set('result', serializedResult);
+        next.delete('hotel');
+        const nextString = next.toString();
+
+        if (nextString === prevString) {
+          return prev;
+        }
+
+        return next;
+      },
+      { replace: true }
+    );
+  }, [
+    activeCountryId,
+    currentResult,
+    currentCountryParam,
+    currentResultParam,
+    hotelParam,
+    setSearchParams,
+  ]);
 
   const isAbortError = (err: unknown): err is DOMException =>
     err instanceof DOMException && err.name === 'AbortError';
@@ -244,15 +366,6 @@ export default function SearchPage() {
     void cancelActiveSearch();
   };
 
-  const getHotelsForCountry = async (countryId: string) => {
-    if (hotelsCache[countryId]) return hotelsCache[countryId];
-
-    const resp = await getHotels(countryId);
-    const hotelsData: Record<string, Hotel> = await resp.json();
-    setHotelsCache((prev) => ({ ...prev, [countryId]: hotelsData }));
-    return hotelsData;
-  };
-
   const getToursForRender = () => {
     if (!currentResult || !activeCountryId) return [];
 
@@ -279,6 +392,7 @@ export default function SearchPage() {
   };
 
   const tours = getToursForRender();
+  const persistedSearchQuery = searchParams.toString();
 
   return (
     <div className='app-container'>
@@ -298,6 +412,7 @@ export default function SearchPage() {
               price={price}
               hotel={hotel}
               country={country}
+              searchQuery={persistedSearchQuery}
             />
           ))}
         </div>
