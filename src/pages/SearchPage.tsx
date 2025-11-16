@@ -119,6 +119,9 @@ export default function SearchPage() {
       if (activeSearchRef.current?.token === activeSearch.token) {
         activeSearchRef.current = null;
       }
+      if (!activeSearchRef.current) {
+        setIsLoading(false);
+      }
       setIsCancelling(false);
     }
   };
@@ -203,9 +206,18 @@ export default function SearchPage() {
     } finally {
       if (activeSearchRef.current?.token === token) {
         activeSearchRef.current = null;
+      }
+
+      if (!activeSearchRef.current) {
         setIsLoading(false);
       }
     }
+  };
+
+  const handleGeoChange = () => {
+    if (!activeSearchRef.current) return;
+
+    void cancelActiveSearch();
   };
 
   const runSearchFlow = async (countryId: string) => {
@@ -275,6 +287,7 @@ export default function SearchPage() {
         onSubmit={handleSearch}
         isSearching={isLoading}
         isSubmitDisabled={isSubmitLocked}
+        onGeoChange={handleGeoChange}
         footer={statusMessage}
       />
 

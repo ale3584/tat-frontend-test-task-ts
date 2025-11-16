@@ -9,6 +9,7 @@ interface SearchFormProps {
   isSearching: boolean;
   footer?: ReactNode;
   isSubmitDisabled?: boolean;
+  onGeoChange?: (geo: GeoEntity | null) => void;
 }
 
 const getCountryId = (geo: GeoEntity): string | undefined => {
@@ -29,12 +30,14 @@ export const SearchForm: React.FC<SearchFormProps> = ({
   isSearching,
   footer,
   isSubmitDisabled = false,
+  onGeoChange,
 }) => {
   const [selectedGeo, setSelectedGeo] = useState<GeoEntity | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleGeoSelect = (item: GeoEntity | null) => {
     setSelectedGeo(item);
+    onGeoChange?.(item);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
