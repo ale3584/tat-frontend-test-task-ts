@@ -285,8 +285,8 @@ export default function SearchPage() {
     <div className='app-container'>
       <SearchForm
         onSubmit={handleSearch}
-        isSearching={isLoading}
-        isSubmitDisabled={isSubmitLocked}
+        isSearching={isLoading || isCancelling}
+        isSubmitDisabled={isSubmitLocked || isCancelling}
         onGeoChange={handleGeoChange}
         footer={statusMessage}
       />
