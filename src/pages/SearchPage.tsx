@@ -221,6 +221,18 @@ export default function SearchPage() {
     void runSearchFlow(countryId);
   };
 
+  const handleCountrySelectionChange = (countryId: string | null) => {
+    if (
+      countryId &&
+      isSubmitLocked &&
+      activeCountryId &&
+      countryId !== activeCountryId
+    ) {
+      setIsSubmitLocked(false);
+      void cancelActiveSearch();
+    }
+  };
+
   const getHotelsForCountry = async (countryId: string) => {
     if (hotelsCache[countryId]) return hotelsCache[countryId];
 
@@ -263,6 +275,7 @@ export default function SearchPage() {
         onSubmit={handleSearch}
         isSearching={isLoading}
         isSubmitDisabled={isSubmitLocked}
+        onSelectedCountryChange={handleCountrySelectionChange}
         footer={statusMessage}
       />
 
