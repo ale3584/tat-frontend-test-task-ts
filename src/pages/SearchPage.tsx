@@ -240,8 +240,6 @@ export default function SearchPage() {
     setHasSearched(true);
     setError(null);
 
-    if (searchResults[countryId]) return;
-
     void runSearchFlow(countryId);
   };
 
